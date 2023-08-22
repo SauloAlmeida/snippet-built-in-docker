@@ -1,0 +1,34 @@
+name: dotnet build + deploy docker hub
+
+on: 
+    push:
+        branches: 
+            - master
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        dotnet-version: [ '7.0.x' ]
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup .NET Core SDK ${{ matrix.dotnet-version }}
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: ${{ matrix.dotnet-version }}
+      - name: Install dependencies
+        run: dotnet restore
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+      - name: Publish + Create docker image
+        run: dotnet publish -c Release --self-contained
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Tag Docker Image
+        run: docker tag snippet-built-in-docker:latest ${{ secrets.DOCKERHUB_USERNAME }}/snippet-built-in-docker:latest
+      - name: Push image
+        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/snippet-built-in-docker:latest
